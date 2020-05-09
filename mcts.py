@@ -2,18 +2,18 @@ import numpy as np
 import pdb
 from tqdm import tqdm_notebook as tqdm
 
+
 class Decision_Node:
-    def __init__(self,
-                state,
-                father = None,
-                is_root = False,
-                is_final = False):
-        """
-        state: tuple, defining the state
-        father: RandomNode
-        is_root: bool
-        is_final: bool
-        """
+    """
+    The Decision Noed class
+
+    :param state: (tuple) defining the state
+    :param father: (RandomNode) The father of the Decision Node, None if it is the root node
+    :param is_root: (bool)
+    :param is_final: (bool)
+    """
+
+    def __init__(self, state, father=None, is_root=False, is_final=False):
         self.state = state
         self.children = {}
         self.is_final = is_final
@@ -23,38 +23,36 @@ class Decision_Node:
 
     def add_children(self, random_node):
         """
-        adds a RandomNode  object to the dictionary of childrens (key is the action)
+        Adds a RandomNode  object to the dictionary of childrens (key is the action)
+
+        :param random_node: (RandomNode) add a raindom node to the set of children visited
         """
         self.children[str(random_node.action)] = random_node
-
-    def reward(self, r):
-        """
-        """
-        self.reward = r
 
     def __repr__(self):
         s = ""
         for item in self.__dict__.items():
             if item[0] == "children":
-                s+=" "+"(children, "+str(len(self.children))+")"
+                s += " "+"(children, "+str(len(self.children))+")"
             elif item[0] == "father":
                 pass
             else:
-                s+=" "+str(item)
+                s += " "+str(item)
         return s
 
-class Random_Node:
-    def __init__(self,
-                state,
-                action,
-                father=None):
-        """
-        state: tuple, defining the state
-        action: action taken in the decision node
-        father: DecisionNode
-        is_root: bool
-        is_final: bool
-        """
+
+class RandomNode:
+    """
+    The RandomNode class defined by the state and action taken, is a ranodm node since the next state is note yet defined
+
+    :param state: (tuple) defining the state
+    :param action: (action) taken in the decision node
+    :param father: (DecisionNode)
+    :param is_root: (bool)
+    :param is_final: (bool)
+    """
+
+    def __init__(self, state, action, father=None):
         self.state = state
         self.action = action
         self.children = {}
@@ -65,49 +63,38 @@ class Random_Node:
     def reward(self, reward):
         self.reward = reward
 
-    def add_children(self, decision_Node):
+    def add_children(self, x):
         """
         adds a DecisionNode object to the dictionary of childrens (key is the state)
+
+        :param x: (DecisinNode) the decision node to add to the children dict
         """
-        self.children[str(decision_Node.state)] = decision_Node
+        self.children[str(x.state)] = x
 
     def __repr__(self):
         s = ""
         for item in self.__dict__.items():
             if item[0] == "children":
-                s+=" "+"(children, "+str(len(self.children))+")"
+                s += " "+"(children, "+str(len(self.children))+")"
             elif item[0] == "father":
                 pass
             else:
-                s+=" "+str(item)
+                s += " "+str(item)
         return s
+
 
 class MCTS:
     """
     Base class for MCTS based on Monte Carlo Tree Search for Continuous and Stochastic Sequential Decision Making Problems, Courtoux
 
-    methods:
-        grow_tree
-        evaluate
-        select
-        select_outcome
-        best_action
-        run
-
+    :param initial_state: (DecisionNode) initial state of the tree
+    :param K: exploration parameter of UCB
+    :param generative_model: (fun: RandomNode -> [DecisionNode,float]) Function that gets a RandomNode and returns a DecisionNode and a float.
+    :param rollout_policy: (fun: DecisionNode -> float) Function that selects an action from a DecisionNode during the rollout procedure
+    :param action_sampler: (fun: DecisionNode -> float) Function that selects an action from a DecisionNode during the sampling procedure
     """
-    def __init__(self,
-                 initial_state,
-                 K,
-                 generative_model,
-                 rollout_policy,
-                 action_sampler):
-        """
-        intial_state: DecisionNode
-        K: exploration parameter
-        generative_model: RandomNode -> DecisionNode
-        rollout_policy: DecisionNode -> action
-        action_sampler: DecisionNode -> action
-        """
+
+    def __init__(self, initial_state, K, generative_model, rollout_policy, action_sampler):
         self.root = initial_state
         self.K = K
         self.generative_model = generative_model
@@ -127,7 +114,7 @@ class MCTS:
             x = decision_node.state
 
             if str(a) not in decision_node.children.keys():
-                new_random_node = Random_Node(x, a, father = decision_node)
+                new_random_node = RandomNode(x, a, father=decision_node)
                 decision_node.add_children(new_random_node)
             else:
                 new_random_node = decision_node.children[str(a)]
@@ -147,8 +134,6 @@ class MCTS:
 
         cumulative_reward = self.evaluate(decision_node)
 
-        decision_node.visits += 1
-
         while not decision_node.is_root:
             random_node = decision_node.father
             cumulative_reward += random_node.reward
@@ -157,40 +142,51 @@ class MCTS:
             decision_node = random_node.father
             decision_node.visits += 1
 
-    def evaluate(self, state):
+    def evaluate(self, x):
         """
-        evaluates a DecionNode playing until an terminal node using the rollotPolicy
-        return: reward
+        Evaluates a DecionNode playing until an terminal node using the rollotPolicy
+
+        :param x: (Decision_Node) Node to evaluate
+        :return: (float) the cumulative reward observed during the tree traversing.
         """
+
         R = 0
-        while not state.is_final:
-            a = self.rollout_policy(state)
-            new_random_node = Random_Node(state.state, a, father=state)
-            (state, r) = self.generative_model(new_random_node)
+        x.visits += 1
+        while not x.is_final:
+            a = self.rollout_policy(x)
+            new_random_node = RandomNode(x.state, a, father=x)
+            (x, r) = self.generative_model(new_random_node)
             R += r
 
         return R
 
     def select_outcome(self, random_node):
         """
-        given a RandomNode returns a DecisionNode
+        Given a RandomNode returns a DecisionNode
+
+        :param: random_node: (RandomNode) the random node from which selects the next state
+        :return: (DecisionNode) the selected Decision Node
         """
+
         return self.generative_model(random_node)
 
-    def select(self, state):
+    def select(self, x):
+        """
+        Selects the action to play from the current decision node
+
+        :param x: (DecisionNode) current decision node
+        :return: (float) action to play
+        """
+
         raise NotImplemented
-
-        # Q = [node.cumulative_reward/node.visits + self.K*np.sqrt(np.log(state.visits)/node.visits)
-        #      for node in state.children]
-
-        # index_best_action = np.argmax(Q)
-
-        # return state.children[index_best_action].action
 
     def best_action(self):
         """
         At the end of the simulations returns the most visited action
+
+        :return: (float) the best action accoring to the number of visits
         """
+
         number_of_visits_children = [node.visits for node in self.root.children.values()]
         index_best_action = np.argmax(number_of_visits_children)
 
@@ -199,7 +195,11 @@ class MCTS:
     def run(self, Nsim, progress_bar=False):
         """
         Expand the tree and return the bet action
+
+        :param: Nsim: (int) number of tree traversals to do
+        :return: (float) the best action selected
         """
+
         if progress_bar:
             iterations = tqdm(range(Nsim))
         else:
@@ -209,12 +209,19 @@ class MCTS:
 
         return self.best_action()
 
+
 class SPW(MCTS):
     """
-    Simple Progressive Widening
-    Best suited for continuous action sapce and discrete state space
+    Simple Progressive Widening trees based on Monte Carlo Tree Search for Continuous and Stochastic Sequential Decision Making Problems, Courtoux
 
+    :param alpha: (float) the number of children of a decision node are always greater that v**alpha, where v is the number of visits to the current decision node
+    :param initial_state: (DecisionNode) initial state of the tree
+    :param K: exploration parameter of UCB
+    :param generative_model: (fun: RandomNode -> [DecisionNode,float]) Function that gets a RandomNode and returns a DecisionNode and a float.
+    :param rollout_policy: (fun: DecisionNode -> float) Function that selects an action from a DecisionNode during the rollout procedure
+    :param action_sampler: (fun: DecisionNode -> float) Function that selects an action from a DecisionNode during the sampling procedure
     """
+
     def __init__(self,
                  alpha,
                  initial_state,
@@ -223,31 +230,42 @@ class SPW(MCTS):
                  rollout_policy,
                  action_sampler):
 
-        super(SPW, self).__init__(initial_state,
-                                 K,
-                                 generative_model,
-                                 rollout_policy,
-                                 action_sampler)
+        super(SPW, self).__init__(initial_state, K, generative_model, rollout_policy, action_sampler)
 
         self.alpha = alpha
 
-    def select(self, decision_node):
+    def select(self, x):
+
         """
-        The number of children of a DecisionNode is kept finite at all times and monotonic to the number of visits of the DecisionNode
+        Selects the action to play from the current decision node. The number of children of a DecisionNode is kept finite at all times and monotonic to the number of visits of the DecisionNode.
+
+        :param x: (DecisionNode) current decision node
+        :return: (float) action to play
         """
-        if decision_node.visits**self.alpha >= len(decision_node.children):
-            a = self.action_sampler(decision_node)
+        if x.visits**self.alpha >= len(x.children):
+            a = self.action_sampler(x)
 
         else:
-            Q = [node.cumulative_reward/node.visits + self.K*np.sqrt(np.log(decision_node.visits)/node.visits)
-             if node.visits>0 else np.inf for node in decision_node.children.values()]
+            Q = [node.cumulative_reward/node.visits + self.K*np.sqrt(np.log(x.visits)/node.visits) if node.visits > 0 else np.inf for node in x.children.values()]
 
             index_best_action = np.argmax(Q)
 
-            a = list(decision_node.children.values())[index_best_action].action
+            a = list(x.children.values())[index_best_action].action
         return a
 
+
 class DPW(SPW):
+    """
+    Double Progressive Widening trees based on Monte Carlo Tree Search for Continuous and Stochastic Sequential Decision Making Problems, Courtoux
+
+    :param alpha: (float) the number of children of a decision node are always greater that v**alpha, where v is the number of visits to the current decision node
+    :param beta: (float) the number of outcomes of a random node is grater that v**beta where v is the number of visits of the random node
+    :param initial_state: (DecisionNode) initial state of the tree
+    :param K: exploration parameter of UCB
+    :param generative_model: (fun: RandomNode -> [DecisionNode,float]) Function that gets a RandomNode and returns a DecisionNode and a float.
+    :param rollout_policy: (fun: DecisionNode -> float) Function that selects an action from a DecisionNode during the rollout procedure
+    :param action_sampler: (fun: DecisionNode -> float) Function that selects an action from a DecisionNode during the sampling procedure
+    """
     def __init__(self,
                  alpha,
                  beta,
@@ -257,12 +275,7 @@ class DPW(SPW):
                  rollout_policy,
                  action_sampler):
 
-        super(DPW, self).__init__(alpha,
-                                initial_state,
-                                K,
-                                generative_model,
-                                rollout_policy,
-                                action_sampler)
+        super(DPW, self).__init__(alpha, initial_state, K, generative_model, rollout_policy, action_sampler)
 
         self.beta = beta
 
@@ -270,7 +283,8 @@ class DPW(SPW):
         """
         The number of outcomes of a RandomNode is kept fixed at all times and increasing to the number of visits of the random_node
 
-        return a new_decisionNode and a reward
+        :param: random_node: (RandomNode) random node from which to select the next state
+        :return: (DecisionNode, float) return the next decision node and reward
         """
 
         if random_node.visits**self.beta >= len(random_node.children):
@@ -286,7 +300,9 @@ class DPW(SPW):
 
 if __name__ == "__main__":
 
-    #pdb.set_trace()
+    """
+    Example to reproduce the toy case in the paper
+    """
 
     import numpy as np
     import matplotlib.pyplot as plt
@@ -305,54 +321,69 @@ if __name__ == "__main__":
 
     def reward(x):
         """
-        x: Decision_Node obj
-        return: float reward
+        Gets the reward observed in the decision node x
+
+        :param x: (DecisionNode) decision node in which the agent collects the reard
+        :return: (float) reward
         """
-        if x.state[0]<l:
+        if x.state[0] < l:
             return a
-        if x.state[0]>l+w:
+        if x.state[0] > l+w:
             return h
         return 0
 
     def transition(x, a):
         """
-        takes a decision node and an action and outputs another
+        Takes a decision node and an action and outputs another
         decision node based on the transition dynamics
 
-        x: state_object
-        a: numeric
+        :param: x: (DecisionNode) decision node from which to compute the transition
+        :param: a: (float) action taken in the decision node x
         """
+
         noise = np.random.uniform()
-        # noise = np.random.choice(5)/5
         x_new = Decision_Node(
-            state = (x.state[0]+a+R*noise, x.state[1]+1),
-            father = None,
-            is_root = False,
-            is_final = (x.state[1]+1 == 2))
+            state=(x.state[0]+a+R*noise, x.state[1]+1),
+            father=None,
+            is_root=False,
+            is_final=(x.state[1]+1 == 2))
 
         return x_new
 
     def generative_model(random_node):
         """
-        state: state_variable
-        a: numeric
+        Given a random node (state and action taken) computes the transition and gets the reward observed in the next state.
+
+        :param random_node: (RandomNode) random node (defined by state and action) from which to generate next state
+        :return: (DecisionNode, float) returns the next decisionn node and the reward observed in the next state
         """
+
         state_new = transition(random_node.father, random_node.action)
         r = reward(state_new)
         return (state_new, r)
 
     def rollout_policy(x):
         """
-        x: numeric
-        return a random legal action
+        Function that maps decision nodes to acions. To use while evaluationg the node value.
+
+        :param x: (DecisionNode) From which to take the actiion
+        :return: (float) the action to take at the decision node x
         """
+
         if DISCRETE:
             action = np.random.choice(n+1)/n
         else:
             action = np.random.uniform()
         return action
 
-    def action_sampler(state):
+    def action_sampler(x):
+        """
+        Function that maps decision nodes to acions. To use while tarversing the tree.
+
+        :param x: (DecisionNode) From which to take the actiion
+        :return: (float) the action to take at the decision node x
+        """
+
         if DISCRETE:
             action = np.random.choice(n+1)/n
         else:
@@ -360,29 +391,18 @@ if __name__ == "__main__":
         return action
 
     def Test_algo(Nsim, algo):
-        x0 = Decision_Node((0,0), father=None, is_root = True)
+        x0 = Decision_Node((0, 0), father=None, is_root=True)
 
         Reward = 0
         x = x0
 
         while not x.is_final:
 
-            if algo=="DPW":
-                tree = DPW(alpha = 0.2,
-                            beta = 0.2,
-                            initial_state = x,
-                            K = 2,
-                            generative_model    = generative_model,
-                            rollout_policy      = rollout_policy,
-                            action_sampler      = action_sampler)
+            if algo == "DPW":
+                tree = DPW(alpha=0.2, beta=0.2, initial_state=x, K=2, generative_model=generative_model, rollout_policy=rollout_policy, action_sampler=action_sampler)
 
             else:
-                tree = SPW(alpha = 0.2,
-                            initial_state = x,
-                            K = 2,
-                            generative_model    = generative_model,
-                            rollout_policy      = rollout_policy,
-                            action_sampler      = action_sampler)
+                tree = SPW(alpha=0.2, initial_state=x, K=2, generative_model=generative_model, rollout_policy=rollout_policy, action_sampler=action_sampler)
 
             action = tree.run(Nsim)
 
@@ -394,14 +414,14 @@ if __name__ == "__main__":
 
         return Reward
 
-    Nsims = [1000,5000,10000,100000,1000000,2000000]
-    R_SPW=[]
-    R_DPW=[]
+    Nsims = [1000, 5000, 10000, 100000]
+    R_SPW = []
+    R_DPW = []
 
-    internal_sim = 10
+    internal_sim = 3
 
     for N in Nsims:
-        print("N: ",N)
+        print("N: ", N)
         spw_tmp = []
         dpw_tmp = []
         for _ in tqdm(range(internal_sim)):
@@ -418,10 +438,8 @@ if __name__ == "__main__":
 
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
-    ax.plot(Nsims, R_SPW, marker = "^")
-    ax.plot(Nsims, R_DPW, marker = "*")
+    ax.plot(Nsims, R_SPW, marker="^")
+    ax.plot(Nsims, R_DPW, marker="*")
     ax.set_xscale('log')
-    ax.legend(["SPW","DPW"])
+    ax.legend(["SPW", "DPW"])
     plt.show()
-
-
